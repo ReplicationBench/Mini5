@@ -9,6 +9,7 @@ const $ = (id) => document.getElementById(id);
 const radio = new Mini5Radio();
 let image = null;           // in-memory image (Uint8Array)
 let edit = { slot: -1, fresh: false };
+let selfTestBaseline = null;   // when set, the next download is compared to this
 
 function log(msg, kind = '') {
   const line = document.createElement('div');
@@ -41,9 +42,30 @@ async function connect(pickAny) {
 }
 async function download() {
   setStatus('Downloading from radio…'); progress(0); $('btnDownload').disabled = true;
-  try { image = await radio.download(progress); renderChannels(); setStatus(`Downloaded — ${$('count').textContent}`, 'ok'); }
-  catch (e) { log(e.message, 'err'); setStatus('Download failed (see log)', 'err'); }
+  try {
+    image = await radio.download(progress);
+    renderChannels();
+    if (selfTestBaseline) {                       // step 2 of the write self-test
+      const diffs = compareImages(selfTestBaseline, image);
+      selfTestBaseline = null;
+      if (diffs.length === 0) {
+        setStatus('✅ Self-test PASSED — re-read matches the baseline exactly. Write-back is lossless.', 'ok');
+        log('Self-test PASSED: 0 bytes differ from baseline.', 'ok');
+      } else {
+        setStatus(`⚠️ Self-test: ${diffs.length} byte(s) differ from baseline (see log).`, 'warn');
+        log(`Differing offsets (first 16): ${diffs.slice(0, 16).map((o) => '0x' + o.toString(16)).join(', ')}`, 'warn');
+        log("A few diffs may be volatile state the radio rewrites on reboot. Many diffs mean the write map needs work — don't trust edited writes yet.", 'warn');
+      }
+    } else {
+      setStatus(`Downloaded — ${$('count').textContent}`, 'ok');
+    }
+  } catch (e) { log(e.message, 'err'); setStatus('Download failed (see log)', 'err'); }
   syncButtons();
+}
+function compareImages(a, b) {
+  const d = []; const n = Math.min(a.length, b.length);
+  for (let i = 0; i < n && d.length <= 256; i++) if (a[i] !== b[i]) d.push(i);
+  return d;
 }
 async function upload() {
   if (!image) return;
@@ -55,24 +77,27 @@ async function upload() {
   syncButtons();
 }
 
+// Two-step write self-test. Step 1 (here): download a baseline and write it back
+// unchanged — the radio then reboots. Step 2: the user reconnects and clicks Download,
+// and download() compares that fresh read to selfTestBaseline.
 async function selfTest() {
   if (!radio.connected) return;
-  if (!confirm('Write self-test\n\nThis downloads your radio, writes the SAME data back unchanged, '
-    + 'then re-reads and compares. It does modify the radio (writing identical bytes), so keep a '
-    + 'backup .img first.\n\nRun the self-test?')) return;
-  setStatus('Running write self-test…'); progress(0);
+  if (!confirm('Write self-test (two-step)\n\n'
+    + 'Step 1 (now): download a baseline and write it back UNCHANGED. The radio will reboot.\n'
+    + 'Step 2: when it powers back on, click "Connect radio" then "Download" — I\'ll compare '
+    + 'automatically and confirm the write was lossless.\n\n'
+    + 'Keep a backup .img first. Proceed?')) return;
+  setStatus('Self-test: downloading baseline…'); progress(0);
   for (const b of document.querySelectorAll('.toolbar button')) b.disabled = true;
   try {
-    const { diffs, identical, before } = await radio.roundTripTest(progress);
-    image = before; renderChannels();                 // keep the baseline as current image
-    if (identical) {
-      setStatus('✅ Self-test PASSED — write round-trips losslessly (0 bytes changed). Write-back is safe.', 'ok');
-    } else {
-      setStatus(`⚠️ Self-test: ${diffs.length} byte(s) differ after write-back — review the log before trusting writes.`, 'warn');
-      log(`Differing offsets (first 16): ${diffs.slice(0, 16).map((o) => '0x' + o.toString(16)).join(', ')}`, 'warn');
-      log('A handful of differing bytes may be volatile status fields. Many diffs mean the write map needs work — do NOT write edits yet.', 'warn');
-    }
-  } catch (e) { log(e.message, 'err'); setStatus('Self-test failed (see log)', 'err'); }
+    const baseline = await radio.download((p) => progress(p * 0.5));
+    image = baseline; renderChannels();
+    setStatus('Self-test: writing baseline back…');
+    await radio.upload(baseline, (p) => progress(0.5 + p * 0.5));
+    selfTestBaseline = baseline.slice();          // arm the compare for the next download
+    setStatus('✅ Write sent — radio is rebooting. Now: Connect → Download, and I\'ll verify it.', 'ok');
+    log('Self-test step 1 done. When the radio is back: Connect, then Download to verify (auto-compares to baseline).', 'ok');
+  } catch (e) { log(e.message, 'err'); setStatus('Self-test write failed (see log)', 'err'); selfTestBaseline = null; }
   syncButtons();
 }
 
