@@ -39,13 +39,27 @@ export class Mini5Radio {
       this.char = null;
       this.onDisconnect();
     });
+    await this._attach();
+    this.log(`connected to "${this.device.name || 'radio'}"`, 'ok');
+    return this.device.name;
+  }
+
+  // (Re)acquire GATT service, characteristic, and notifications on this.device.
+  async _attach() {
     const server = await this.device.gatt.connect();
     const service = await server.getPrimaryService(SERVICE);
     this.char = await service.getCharacteristic(CHAR);
     await this.char.startNotifications();
     this.char.addEventListener('characteristicvaluechanged', (e) => this._onNotify(e));
-    this.log(`connected to "${this.device.name || 'radio'}"`, 'ok');
-    return this.device.name;
+  }
+
+  // Reconnect to the same device after it reboots/drops (radios reboot after a write).
+  async reconnect(tries = 15, delayMs = 1500) {
+    for (let t = 1; t <= tries; t++) {
+      try { await this._attach(); this.log('reconnected after reboot', 'ok'); return; }
+      catch { this.log(`waiting for radio to come back (${t}/${tries})…`, 'warn'); await sleep(delayMs); }
+    }
+    throw new Error('radio did not come back after write — power-cycle it and reconnect');
   }
 
   async disconnect() {
@@ -218,7 +232,10 @@ export class Mini5Radio {
     await sleep(1000);                       // let the radio settle before re-handshaking
     this.log('Self-test 2/3: writing baseline back unchanged…');
     await this.upload(before, (p) => onProgress(0.45 + p * 0.45));
-    await sleep(1000);
+    this.log('write done — radio reboots to commit; reconnecting…');
+    await sleep(3000);                        // radio reboots/drops BLE after a write
+    await this.reconnect();
+    await sleep(500);
     this.log('Self-test 3/3: re-reading to compare…');
     const after = await this.download((p) => onProgress(0.9 + p * 0.1));
     const diffs = [];
