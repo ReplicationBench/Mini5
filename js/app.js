@@ -26,6 +26,7 @@ function syncButtons() {
   $('btnConnect').disabled = c;
   $('btnDownload').disabled = !c;
   $('btnUpload').disabled = !c || !image;
+  $('btnVerify').disabled = !c;
   $('btnSave').disabled = !image;
   $('btnAdd').disabled = !image;
 }
@@ -46,10 +47,32 @@ async function download() {
 }
 async function upload() {
   if (!image) return;
-  if (!confirm('Write this image to the radio? This overwrites its memory.')) return;
+  if (!confirm('Write this image to the radio? This OVERWRITES its memory.\n\n'
+    + 'Recommended: run the Write self-test first, and keep a backup .img. Proceed?')) return;
   setStatus('Uploading to radio…'); progress(0);
   try { await radio.upload(image, progress); setStatus('Upload complete', 'ok'); }
   catch (e) { log(e.message, 'err'); setStatus('Upload failed (see log)', 'err'); }
+  syncButtons();
+}
+
+async function selfTest() {
+  if (!radio.connected) return;
+  if (!confirm('Write self-test\n\nThis downloads your radio, writes the SAME data back unchanged, '
+    + 'then re-reads and compares. It does modify the radio (writing identical bytes), so keep a '
+    + 'backup .img first.\n\nRun the self-test?')) return;
+  setStatus('Running write self-test…'); progress(0);
+  for (const b of document.querySelectorAll('.toolbar button')) b.disabled = true;
+  try {
+    const { diffs, identical, before } = await radio.roundTripTest(progress);
+    image = before; renderChannels();                 // keep the baseline as current image
+    if (identical) {
+      setStatus('✅ Self-test PASSED — write round-trips losslessly (0 bytes changed). Write-back is safe.', 'ok');
+    } else {
+      setStatus(`⚠️ Self-test: ${diffs.length} byte(s) differ after write-back — review the log before trusting writes.`, 'warn');
+      log(`Differing offsets (first 16): ${diffs.slice(0, 16).map((o) => '0x' + o.toString(16)).join(', ')}`, 'warn');
+      log('A handful of differing bytes may be volatile status fields. Many diffs mean the write map needs work — do NOT write edits yet.', 'warn');
+    }
+  } catch (e) { log(e.message, 'err'); setStatus('Self-test failed (see log)', 'err'); }
   syncButtons();
 }
 
@@ -158,6 +181,7 @@ $('btnConnect').onclick = () => connect(false);
 $('btnPickAny').onclick = () => connect(true);
 $('btnDownload').onclick = download;
 $('btnUpload').onclick = upload;
+$('btnVerify').onclick = selfTest;
 $('btnSave').onclick = saveImg;
 $('btnAdd').onclick = addChannel;
 $('fileInput').onchange = (e) => { if (e.target.files[0]) loadImg(e.target.files[0]); };

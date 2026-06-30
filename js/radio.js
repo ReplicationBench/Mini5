@@ -148,27 +148,51 @@ export class Mini5Radio {
   }
 
   // Write one block over BLE: 'W'(0x57) addr(2 BE) size(1) data... -> ACK.
+  // `data` is always a full BLE_WRITE_BLOCK (0x80) — partial blocks are pre-padded.
   async _writeBlock(addr, data) {
     await this._send(new Uint8Array([0x57, (addr >> 8) & 0xff, addr & 0xff, data.length & 0xff, ...data]));
     const a = await this._waitBytes(1, 4000);
     if (a[0] !== ACK) throw new Error(`write @0x${addr.toString(16)}: no ACK (0x${a[0].toString(16)})`);
   }
 
-  // Full upload of an image. Uses 0x80 blocks over BLE (per CHIRP UV5RMini._upload).
+  // Full upload of an image. Mirrors CHIRP UV5RMini._upload: always send full 0x80
+  // blocks, padding each region's final partial block with 0xFF; advance the image
+  // read pointer only by the real byte count.
   async upload(image, onProgress = () => {}) {
     await this.enterClone();
-    const blk = MINI5.BLE_WRITE_BLOCK;
-    let src = 0, total = MINI5.MEM_TOTAL;
+    const blk = MINI5.BLE_WRITE_BLOCK;          // 0x80
+    let src = 0; const total = MINI5.MEM_TOTAL;
     for (let r = 0; r < MINI5.MEM_STARTS.length; r++) {
       const start = MINI5.MEM_STARTS[r], size = MINI5.MEM_SIZES[r];
       for (let addr = start; addr < start + size; addr += blk) {
         const n = Math.min(blk, start + size - addr);
-        await this._writeBlock(addr, image.subarray(src, src + n));
+        const block = new Uint8Array(blk).fill(0xFF);     // pad partial block
+        block.set(image.subarray(src, src + n), 0);
+        await this._writeBlock(addr, block);              // always a full 0x80 block
         src += n;
         onProgress(src / total);
         await sleep(2);
       }
     }
     this.log(`uploaded ${src} bytes`, 'ok');
+  }
+
+  // Non-destructive write self-test: download a baseline, write it back UNCHANGED,
+  // re-download, and byte-compare. Identical => the write path round-trips losslessly.
+  // Returns { before, after, diffs, identical }.
+  async roundTripTest(onProgress = () => {}) {
+    this.log('Self-test 1/3: reading baseline…');
+    const before = await this.download((p) => onProgress(p * 0.45));
+    this.log('Self-test 2/3: writing baseline back unchanged…');
+    await this.upload(before, (p) => onProgress(0.45 + p * 0.45));
+    this.log('Self-test 3/3: re-reading to compare…');
+    const after = await this.download((p) => onProgress(0.9 + p * 0.1));
+    const diffs = [];
+    for (let i = 0; i < before.length && diffs.length <= 256; i++) {
+      if (before[i] !== after[i]) diffs.push(i);
+    }
+    this.log(`self-test done: ${diffs.length === 0 ? 'identical' : diffs.length + ' byte(s) differ'}`,
+             diffs.length === 0 ? 'ok' : 'warn');
+    return { before, after, diffs, identical: diffs.length === 0 };
   }
 }
