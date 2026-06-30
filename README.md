@@ -1,5 +1,10 @@
 # Mini 5 Studio
 
+> ⚠️ **VibeCoded — use at your own risk.** This is experimental software that talks to
+> and writes to your radio. It may contain bugs that could misconfigure or brick your
+> device. Provided with **no warranty** of any kind. Always keep a backup `.img` before
+> writing, and only proceed if you accept full responsibility for the outcome.
+
 Program your **Baofeng UV-5R Mini** (a.k.a. Mini 5 / GT-5R Mini) straight from a web
 browser over Bluetooth — **no programming cable, no ESP32 bridge, no CHIRP install.**
 

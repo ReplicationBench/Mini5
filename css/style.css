@@ -17,6 +17,13 @@ body {
 a { color: var(--accent); }
 code { background: #8882; padding: 0 .3em; border-radius: 4px; font-size: .9em; }
 
+.warnbar {
+  background: color-mix(in srgb, var(--warn) 22%, var(--panel));
+  color: var(--txt); border-bottom: 1px solid var(--warn);
+  padding: .55rem 1.2rem; font-size: .85rem; text-align: center;
+}
+.warnbar code { background: #0002; }
+
 .topbar {
   display: flex; align-items: center; justify-content: space-between; gap: 1rem;
   padding: .9rem 1.2rem; background: var(--panel); border-bottom: 1px solid var(--line);
