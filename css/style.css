@@ -62,7 +62,21 @@ button.ghost { background: transparent; }
 .barfill { height: 100%; width: 0; background: var(--accent); transition: width .15s ease; }
 
 main { display: flex; gap: 0; flex: 1; min-height: 0; }
-.tablewrap { flex: 1; overflow: auto; }
+.workspace { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.tabs { display: flex; gap: .3rem; padding: .35rem .6rem 0; background: var(--panel2); border-bottom: 1px solid var(--line); }
+.tab { background: transparent; border: none; border-bottom: 2px solid transparent; border-radius: 8px 8px 0 0;
+       padding: .5rem .9rem; color: var(--dim); font-weight: 600; }
+.tab.active { color: var(--txt); border-bottom-color: var(--accent); }
+.view { flex: 1; min-height: 0; }
+.view[hidden] { display: none; }
+.tablewrap { overflow: auto; }
+#view-map { display: flex; flex-direction: column; }
+#view-map[hidden] { display: none; }
+.maptools { display: flex; align-items: center; gap: .6rem; padding: .5rem .8rem; border-bottom: 1px solid var(--line); }
+#map { flex: 1; min-height: 320px; background: var(--panel2); }
+.leaflet-popup-content { font: inherit; }
+.popadd { margin-top: .4rem; font: inherit; font-weight: 600; padding: .3rem .6rem; border-radius: 6px;
+          border: 1px solid var(--accent2); background: var(--accent2); color: #fff; cursor: pointer; }
 .logpane {
   width: 320px; border-left: 1px solid var(--line); background: var(--panel);
   display: flex; flex-direction: column; padding: 1rem;

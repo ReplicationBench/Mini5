@@ -5,6 +5,7 @@ import {
   parseTone, toneLabel, MHz,
 } from './codec.js';
 import { PRESETS, presetToChannels } from './presets.js';
+import { createRepeaterMap } from './map.js';
 
 const $ = (id) => document.getElementById(id);
 const radio = new Mini5Radio();
@@ -254,6 +255,26 @@ $('btnVerify').onclick = selfTest;
 $('btnSave').onclick = saveImg;
 $('btnAdd').onclick = addChannel;
 $('btnPresets').onclick = openPresets;
+
+// ---- map / repeaters --------------------------------------------------------
+const repMap = createRepeaterMap({
+  mapEl: $('map'),
+  onAdd: (ch) => { const r = addChannels([ch]); setStatus(`Added "${ch.name}" from map${r.full ? ' — radio full' : ''}.`, r.full ? 'warn' : 'ok'); },
+  onStatus: setStatus,
+});
+function switchView(view) {
+  document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.view === view));
+  $('view-channels').hidden = view !== 'channels';
+  $('view-map').hidden = view !== 'map';
+  if (view === 'map') repMap.show();
+}
+document.querySelectorAll('.tab').forEach((t) => { t.onclick = () => switchView(t.dataset.view); });
+$('repInput').onchange = async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  const n = repMap.importCsv(await f.text());
+  if (n) { $('repCount').textContent = `${n} repeaters`; setStatus(`Loaded ${n} repeaters from ${f.name}. Click a marker → Add as channel.`, 'ok'); }
+  e.target.value = '';
+};
 $('fileInput').onchange = (e) => { if (e.target.files[0]) loadImg(e.target.files[0]); };
 
 $('prSaveGroup').onclick = saveGroup;

@@ -4,12 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mini 5 Studio — Baofeng UV-5R Mini programmer</title>
+<link rel="stylesheet" href="js/vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="css/style.css">
+<script src="js/vendor/leaflet/leaflet.js" defer></script>
 </head>
 <body>
 <div class="warnbar">
   <div>⚠️ <b>VibeCoded — use at your own risk.</b> Experimental software that writes to your radio. It may contain bugs that could misconfigure or brick your device. No warranty. Always keep a backup <code>.img</code>.</div>
-  <div class="privacy">🔒 <b>Private by design:</b> no analytics, no tracking. Use of this page does not share anything to any database. Everything runs locally — your radio data and <code>.img</code> files never leave your browser.</div>
+  <div class="privacy">🔒 <b>Private by design:</b> no analytics, no tracking, no database. The programmer runs entirely in your browser — your radio data and <code>.img</code> files are never uploaded. (The optional <b>Map</b> tab loads map tiles from OpenStreetMap and plots repeater files <i>you</i> import, only when you open it.)</div>
 </div>
 <header class="topbar">
   <div class="brand">
@@ -42,7 +44,12 @@
 <div class="progress"><div class="barfill" id="bar"></div></div>
 
 <main>
-  <div class="tablewrap">
+  <div class="workspace">
+  <nav class="tabs">
+    <button class="tab active" data-view="channels">📋 Channels</button>
+    <button class="tab" data-view="map">🗺️ Map (repeaters)</button>
+  </nav>
+  <div id="view-channels" class="view tablewrap">
     <table class="channels">
       <thead>
         <tr>
@@ -56,6 +63,16 @@
         </td></tr>
       </tbody>
     </table>
+  </div>
+  <div id="view-map" class="view" hidden>
+    <div class="maptools">
+      <label class="filebtn">📍 Import RepeaterBook CSV<input type="file" id="repInput" accept=".csv,text/csv" hidden></label>
+      <span id="repCount" class="dim"></span>
+      <span class="grow"></span>
+      <a href="https://www.repeaterbook.com" target="_blank" rel="noopener" class="dim">where to get a CSV export →</a>
+    </div>
+    <div id="map"></div>
+  </div>
   </div>
 
   <aside class="logpane">
