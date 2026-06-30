@@ -11,6 +11,9 @@ browser over Bluetooth — **no programming cable, no ESP32 bridge, no CHIRP ins
 A static single-page app that talks directly to the radio's BLE serial service using
 the [Web Bluetooth API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Bluetooth_API).
 
+**Hosted:** https://replicationbench.github.io/Mini5/ — auto-deployed from `main` via
+GitHub Pages (Settings → Pages → Source: *GitHub Actions*).
+
 > **Status: early foundation.** Download (clone-read), channel decoding, and `.img`
 > save/load work. Editing, write-back, boot-logo upload, the repeater map, and shared
 > station lists are on the roadmap below.
