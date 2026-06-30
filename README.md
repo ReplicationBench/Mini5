@@ -5,6 +5,12 @@
 > device. Provided with **no warranty** of any kind. Always keep a backup `.img` before
 > writing, and only proceed if you accept full responsibility for the outcome.
 
+> 🔒 **Private by design.** This page collects **no analytics** and performs **no tracking**.
+> Use of it does **not** share anything to any database or server. Everything runs locally
+> in your browser — your radio data and `.img` files never leave your device. The app makes
+> no network requests and loads no third-party scripts; the only server involved is whatever
+> static host serves the page's own files.
+
 Program your **Baofeng UV-5R Mini** (a.k.a. Mini 5 / GT-5R Mini) straight from a web
 browser over Bluetooth — **no programming cable, no ESP32 bridge, no CHIRP install.**
 
