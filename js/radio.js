@@ -83,8 +83,20 @@ export class Mini5Radio {
     catch { await this.char.writeValue(arr); }
   }
 
-  // Enter clone mode: magic -> F -> M -> SEND!. Returns the radio ID string.
-  async enterClone() {
+  // Enter clone mode, retrying the whole handshake on a transient failure.
+  async enterClone(tries = 3) {
+    for (let t = 1; ; t++) {
+      try { return await this._enterCloneOnce(); }
+      catch (e) {
+        if (t >= tries) throw e;
+        this.log(`retry handshake (${t}/${tries - 1}): ${e.message}`, 'warn');
+        await sleep(150);
+      }
+    }
+  }
+
+  // One clone-mode handshake attempt: magic -> F -> M -> SEND!. Returns the radio ID.
+  async _enterCloneOnce() {
     this.rx = [];
     await this._send(MAGIC);
     const a1 = await this._waitBytes(1);
@@ -121,11 +133,20 @@ export class Mini5Radio {
   }
 
   // Read one block: 'R'(0x52) addr(2 BE) len(1) -> 4-byte header + len data bytes.
-  async _readBlock(addr, len) {
-    this.rx = [];
-    await this._send(Uint8Array.of(0x52, (addr >> 8) & 0xff, addr & 0xff, len & 0xff));
-    const resp = await this._waitBytes(len + 4, 4000);
-    return resp.subarray(4);          // strip header, return payload
+  // Retries on transient BLE drops (no/short response).
+  async _readBlock(addr, len, tries = 3) {
+    for (let t = 1; ; t++) {
+      this.rx = [];
+      await this._send(Uint8Array.of(0x52, (addr >> 8) & 0xff, addr & 0xff, len & 0xff));
+      try {
+        const resp = await this._waitBytes(len + 4, 3000);
+        return resp.subarray(4);        // strip header, return payload
+      } catch (e) {
+        if (t >= tries) throw new Error(`read @0x${addr.toString(16).padStart(4, '0')} failed after ${tries} tries: ${e.message}`);
+        this.log(`retry read @0x${addr.toString(16).padStart(4, '0')} (${t}/${tries - 1})`, 'warn');
+        await sleep(60);
+      }
+    }
   }
 
   // Full download of the radio image (concatenated regions). onProgress(0..1).
@@ -149,10 +170,21 @@ export class Mini5Radio {
 
   // Write one block over BLE: 'W'(0x57) addr(2 BE) size(1) data... -> ACK.
   // `data` is always a full BLE_WRITE_BLOCK (0x80) — partial blocks are pre-padded.
-  async _writeBlock(addr, data) {
-    await this._send(new Uint8Array([0x57, (addr >> 8) & 0xff, addr & 0xff, data.length & 0xff, ...data]));
-    const a = await this._waitBytes(1, 4000);
-    if (a[0] !== ACK) throw new Error(`write @0x${addr.toString(16)}: no ACK (0x${a[0].toString(16)})`);
+  async _writeBlock(addr, data, tries = 3) {
+    const frame = new Uint8Array([0x57, (addr >> 8) & 0xff, addr & 0xff, data.length & 0xff, ...data]);
+    for (let t = 1; ; t++) {
+      this.rx = [];
+      await this._send(frame);
+      try {
+        const a = await this._waitBytes(1, 3000);
+        if (a[0] === ACK) return;
+        throw new Error(`NAK 0x${a[0].toString(16)}`);
+      } catch (e) {
+        if (t >= tries) throw new Error(`write @0x${addr.toString(16).padStart(4, '0')} failed after ${tries} tries: ${e.message}`);
+        this.log(`retry write @0x${addr.toString(16).padStart(4, '0')} (${t}/${tries - 1})`, 'warn');
+        await sleep(60);
+      }
+    }
   }
 
   // Full upload of an image. Mirrors CHIRP UV5RMini._upload: always send full 0x80
