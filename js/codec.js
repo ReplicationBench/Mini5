@@ -121,3 +121,66 @@ export function decodeChannels(image) {
 }
 
 export const MHz = (hz) => (hz / 1e6).toFixed(5);
+
+const te = new TextEncoder();
+
+// Parse a tone string into {mode,value,pol}. "" = none, "100" / "88.5" = CTCSS,
+// "D023N" / "D754R" = DTCS. Returns null if malformed.
+export function parseTone(str) {
+  const s = (str || '').trim().toUpperCase();
+  if (!s) return { mode: '', value: 0, pol: 'N' };
+  if (s[0] === 'D') {
+    const m = s.match(/^D(\d{1,3})([NR])?$/);
+    if (m) { const code = parseInt(m[1], 10); if (DTCS_CODES.includes(code)) return { mode: 'DTCS', value: code, pol: m[2] || 'N' }; }
+    return null;
+  }
+  const f = parseFloat(s);
+  return isNaN(f) ? null : { mode: 'Tone', value: f, pol: 'N' };
+}
+
+// Write a channel record into the image at slot idx (0-based).
+// Existing slots: only managed fields change; unknown bytes/scode/pttid are preserved.
+// fresh=true zeroes the record first (use when programming a previously-empty slot).
+export function encodeChannel(image, idx, ch, { fresh = false } = {}) {
+  const view = image instanceof Uint8Array ? image : new Uint8Array(image);
+  const base = MINI5.CHAN_BASE + idx * MINI5.CHAN_SIZE;
+  if (fresh) view.fill(0x00, base, base + MINI5.CHAN_SIZE);
+
+  view.set(encodeFreq(ch.rxFreq), base);
+  view.set(encodeFreq(ch.txFreq ?? ch.rxFreq), base + 4);
+
+  const rt = encodeTone(ch.rxTone || { mode: '' });
+  const tt = encodeTone(ch.txTone || { mode: '' });
+  view[base + 8] = rt & 0xff; view[base + 9] = (rt >> 8) & 0xff;
+  view[base + 10] = tt & 0xff; view[base + 11] = (tt >> 8) & 0xff;
+
+  const pIdx = Math.max(0, POWER_LEVELS.indexOf(ch.power));      // 0=High,1=Low
+  view[base + 14] = (view[base + 14] & 0xFC) | (pIdx & 0x03);    // preserve other bits
+
+  let f2 = view[base + 15] & ~((1 << 6) | (1 << 2));             // clear wide+scan bits
+  if (ch.wide) f2 |= (1 << 6);
+  if (ch.scan) f2 |= (1 << 2);
+  view[base + 15] = f2;
+
+  const nm = te.encode((ch.name || '').slice(0, 12));
+  for (let i = 0; i < 12; i++) view[base + 20 + i] = i < nm.length ? nm[i] : 0x00;
+  return view;
+}
+
+// Mark a channel slot empty (CHIRP convention: all 0xFF).
+export function clearChannel(image, idx) {
+  const view = image instanceof Uint8Array ? image : new Uint8Array(image);
+  const base = MINI5.CHAN_BASE + idx * MINI5.CHAN_SIZE;
+  view.fill(0xFF, base, base + MINI5.CHAN_SIZE);
+  return view;
+}
+
+// First unprogrammed slot (0-based), or -1 if full.
+export function firstEmptySlot(image) {
+  const view = image instanceof Uint8Array ? image : new Uint8Array(image);
+  for (let i = 0; i < MINI5.CHANNELS; i++) {
+    const b = MINI5.CHAN_BASE + i * MINI5.CHAN_SIZE;
+    if (view[b] === 0xFF && view[b + 1] === 0xFF && view[b + 2] === 0xFF && view[b + 3] === 0xFF) return i;
+  }
+  return -1;
+}

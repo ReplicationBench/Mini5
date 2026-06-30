@@ -66,6 +66,7 @@ table.channels { width: 100%; border-collapse: collapse; font-variant-numeric: t
 .channels th, .channels td { padding: .45rem .7rem; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
 .channels thead th { position: sticky; top: 0; background: var(--panel2); font-size: .8rem;
                      color: var(--dim); text-transform: uppercase; letter-spacing: .03em; z-index: 1; }
+.channels tbody tr[data-slot] { cursor: pointer; }
 .channels tbody tr:hover { background: #8881; }
 .channels .num { color: var(--dim); text-align: right; }
 .channels .name { font-weight: 600; }
@@ -80,3 +81,27 @@ table.channels { width: 100%; border-collapse: collapse; font-variant-numeric: t
 
 footer { padding: .6rem 1.2rem; border-top: 1px solid var(--line); color: var(--dim); font-size: .8rem; background: var(--panel); }
 @media (max-width: 760px) { .logpane { display: none; } .sub { display: none; } }
+
+/* editor modal */
+.modal-backdrop { position: fixed; inset: 0; background: #0009; display: flex; align-items: center;
+  justify-content: center; padding: 1rem; z-index: 50; }
+.modal-backdrop[hidden] { display: none; }
+.modal { background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+  width: 460px; max-width: 100%; max-height: 90vh; overflow: auto; box-shadow: 0 20px 60px #0007; }
+.modal-head { display: flex; align-items: center; justify-content: space-between;
+  padding: .9rem 1.1rem; border-bottom: 1px solid var(--line); }
+.modal-head h2 { font-size: 1.05rem; margin: 0; }
+.iconbtn { background: transparent; border: none; font-size: 1.1rem; padding: .2rem .5rem; }
+.edform { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem 1rem; padding: 1.1rem; }
+.edform label { display: flex; flex-direction: column; gap: .3rem; font-size: .82rem; color: var(--dim); }
+.edform label.full { grid-column: 1 / -1; }
+.edform label.check { flex-direction: row; align-items: center; gap: .5rem; color: var(--txt); }
+.edform input, .edform select { font: inherit; padding: .5rem .6rem; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--bg); color: var(--txt); }
+.offsets { grid-column: 1 / -1; display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+.offsets button { padding: .3rem .6rem; font-size: .8rem; font-weight: 500; }
+.ederr { grid-column: 1 / -1; color: var(--err); margin: 0; font-size: .82rem; min-height: 1em; }
+.modal-foot { grid-column: 1 / -1; display: flex; align-items: center; gap: .5rem; }
+.modal-foot .grow { flex: 1; }
+button.danger { background: transparent; border-color: var(--err); color: var(--err); }
+button.danger:hover { background: color-mix(in srgb, var(--err) 15%, transparent); }
