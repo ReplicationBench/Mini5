@@ -215,8 +215,10 @@ export class Mini5Radio {
   async roundTripTest(onProgress = () => {}) {
     this.log('Self-test 1/3: reading baseline…');
     const before = await this.download((p) => onProgress(p * 0.45));
+    await sleep(1000);                       // let the radio settle before re-handshaking
     this.log('Self-test 2/3: writing baseline back unchanged…');
     await this.upload(before, (p) => onProgress(0.45 + p * 0.45));
+    await sleep(1000);
     this.log('Self-test 3/3: re-reading to compare…');
     const after = await this.download((p) => onProgress(0.9 + p * 0.1));
     const diffs = [];
