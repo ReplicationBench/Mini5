@@ -113,3 +113,14 @@ footer { padding: .6rem 1.2rem; border-top: 1px solid var(--line); color: var(--
 .modal-foot .grow { flex: 1; }
 button.danger { background: transparent; border-color: var(--err); color: var(--err); }
 button.danger:hover { background: color-mix(in srgb, var(--err) 15%, transparent); }
+
+/* presets & groups modal */
+.prbody { padding: 1.1rem; }
+.prbody h3 { font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--dim); margin: 1.1rem 0 .3rem; }
+.prlist { list-style: none; margin: 0; padding: 0; }
+.prlist li { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .5rem 0; border-bottom: 1px solid var(--line); }
+.prlist li:last-child { border-bottom: none; }
+.prlist button { padding: .35rem .8rem; font-size: .85rem; }
+.prbtns { display: flex; gap: .4rem; align-items: center; }
+.prsave { display: flex; gap: .5rem; margin-top: 1.1rem; }
+.prsave input { flex: 1; font: inherit; padding: .5rem .6rem; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--txt); }

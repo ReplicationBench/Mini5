@@ -34,6 +34,7 @@
   <label class="filebtn">📂 Load .img<input type="file" id="fileInput" accept=".img,.dat,application/octet-stream" hidden></label>
   <span class="sep"></span>
   <button id="btnAdd" disabled>➕ Add channel</button>
+  <button id="btnPresets">📚 Presets &amp; groups</button>
   <span class="grow"></span>
   <span class="count" id="count"></span>
 </section>
@@ -105,6 +106,27 @@
         <button type="submit" class="primary">Save channel</button>
       </footer>
     </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="presets" hidden>
+  <div class="modal">
+    <header class="modal-head">
+      <h2>Presets &amp; groups</h2>
+      <button class="iconbtn" id="prClose" title="Close">✕</button>
+    </header>
+    <div class="prbody">
+      <p class="dim">Adds a channel set to the first empty slots — existing channels are untouched.
+        Then <b>Write to radio</b> or <b>Save .img</b>. Check frequencies/power are legal for your license and region.</p>
+      <h3>Band presets</h3>
+      <ul class="prlist" id="prBuiltins"></ul>
+      <h3>My groups</h3>
+      <ul class="prlist" id="prGroups"></ul>
+      <div class="prsave">
+        <input id="prGroupName" placeholder="Name a group from the current channels…" maxlength="40">
+        <button id="prSaveGroup" class="primary">Save group</button>
+      </div>
+    </div>
   </div>
 </div>
 

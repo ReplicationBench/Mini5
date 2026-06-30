@@ -4,6 +4,7 @@ import {
   MINI5, decodeChannels, encodeChannel, clearChannel, firstEmptySlot,
   parseTone, toneLabel, MHz,
 } from './codec.js';
+import { PRESETS, presetToChannels } from './presets.js';
 
 const $ = (id) => document.getElementById(id);
 const radio = new Mini5Radio();
@@ -201,6 +202,49 @@ function addChannel() {
   openEditor(slot, true);
 }
 
+// ---- presets & custom groups ------------------------------------------------
+function ensureImage() { if (!image) image = new Uint8Array(MINI5.MEM_TOTAL).fill(0xff); }
+
+// Add a list of channel objects to the first empty slots (existing channels untouched).
+function addChannels(list) {
+  ensureImage();
+  let added = 0;
+  for (const ch of list) {
+    const slot = firstEmptySlot(image);
+    if (slot < 0) break;
+    encodeChannel(image, slot, ch, { fresh: true });
+    added += 1;
+  }
+  renderChannels(); syncButtons();
+  return { added, full: added < list.length };
+}
+
+const loadGroups = () => { try { return JSON.parse(localStorage.getItem('mini5-groups') || '{}'); } catch { return {}; } };
+const saveGroups = (g) => localStorage.setItem('mini5-groups', JSON.stringify(g));
+
+function renderPresets() {
+  $('prBuiltins').innerHTML = PRESETS.map((p) =>
+    `<li><div><b>${esc(p.label)}</b><div class="dim">${esc(p.note)}</div></div><button data-preset="${p.key}">Add</button></li>`).join('');
+  const groups = loadGroups(); const names = Object.keys(groups);
+  $('prGroups').innerHTML = names.length
+    ? names.map((n) => `<li><div><b>${esc(n)}</b><div class="dim">${groups[n].length} channels</div></div>`
+        + `<span class="prbtns"><button data-group="${esc(n)}">Add</button><button class="iconbtn" data-delgroup="${esc(n)}" title="Delete">✕</button></span></li>`).join('')
+    : '<li class="dim">No saved groups yet — build some channels, then save them here.</li>';
+}
+function openPresets() { renderPresets(); $('presets').hidden = false; }
+
+function saveGroup() {
+  const name = $('prGroupName').value.trim();
+  if (!name) return;
+  const chans = image ? decodeChannels(image) : [];
+  if (!chans.length) { setStatus('No channels to save as a group.', 'warn'); return; }
+  const groups = loadGroups();
+  groups[name] = chans.map((c) => ({ name: c.name, rxFreq: c.rxFreq, txFreq: c.txFreq, power: c.power, wide: c.wide, scan: c.scan, rxTone: c.rxTone, txTone: c.txTone }));
+  saveGroups(groups);
+  $('prGroupName').value = ''; renderPresets();
+  setStatus(`Saved group "${name}" (${chans.length} channels).`, 'ok');
+}
+
 // ---- events -----------------------------------------------------------------
 $('btnConnect').onclick = () => connect(false);
 $('btnPickAny').onclick = () => connect(true);
@@ -209,7 +253,24 @@ $('btnUpload').onclick = upload;
 $('btnVerify').onclick = selfTest;
 $('btnSave').onclick = saveImg;
 $('btnAdd').onclick = addChannel;
+$('btnPresets').onclick = openPresets;
 $('fileInput').onchange = (e) => { if (e.target.files[0]) loadImg(e.target.files[0]); };
+
+$('prSaveGroup').onclick = saveGroup;
+$('presets').addEventListener('click', (e) => {
+  const t = e.target;
+  if (t.id === 'presets' || t.id === 'prClose') { $('presets').hidden = true; return; }
+  if (t.dataset.preset) {
+    const p = PRESETS.find((x) => x.key === t.dataset.preset);
+    const r = addChannels(presetToChannels(p));
+    setStatus(`Added ${r.added} ${p.label} channel(s)${r.full ? ' — radio full' : ''}.`, r.full ? 'warn' : 'ok');
+  } else if (t.dataset.group) {
+    const r = addChannels(loadGroups()[t.dataset.group] || []);
+    setStatus(`Added ${r.added} channel(s) from "${t.dataset.group}"${r.full ? ' — radio full' : ''}.`, r.full ? 'warn' : 'ok');
+  } else if (t.dataset.delgroup) {
+    const g = loadGroups(); delete g[t.dataset.delgroup]; saveGroups(g); renderPresets();
+  }
+});
 
 $('rows').addEventListener('click', (e) => {
   const tr = e.target.closest('tr[data-slot]');
