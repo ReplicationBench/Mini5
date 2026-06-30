@@ -145,8 +145,8 @@ function saveEditor(e) {
   if (isNaN(tx)) return fail('TX frequency is not a valid number.');
   const rxTone = parseTone($('edRxTone').value);
   const txTone = parseTone($('edTxTone').value);
-  if (rxTone === null) return fail('RX tone must be blank, a CTCSS freq (100.0), or DTCS (D023N).');
-  if (txTone === null) return fail('TX tone must be blank, a CTCSS freq (100.0), or DTCS (D023N).');
+  if (rxTone === null) return fail('RX tone must be blank, a CTCSS freq (100.0), or DCS (D023).');
+  if (txTone === null) return fail('TX tone must be blank, a CTCSS freq (100.0), or DCS (D023).');
 
   encodeChannel(image, edit.slot, {
     rxFreq: Math.round(rx * 1e6),
