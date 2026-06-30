@@ -97,14 +97,17 @@ export class Mini5Radio {
     catch { await this.char.writeValue(arr); }
   }
 
-  // Enter clone mode, retrying the whole handshake on a transient failure.
-  async enterClone(tries = 3) {
+  // Enter clone mode, self-healing across the BLE drops a radio does while rebooting:
+  // if the link is down (or drops mid-handshake) it reconnects and retries.
+  async enterClone(tries = 8) {
     for (let t = 1; ; t++) {
-      try { return await this._enterCloneOnce(); }
-      catch (e) {
+      try {
+        if (!this.connected) await this.reconnect();
+        return await this._enterCloneOnce();
+      } catch (e) {
         if (t >= tries) throw e;
         this.log(`retry handshake (${t}/${tries - 1}): ${e.message}`, 'warn');
-        await sleep(150);
+        await sleep(800);
       }
     }
   }
@@ -232,11 +235,9 @@ export class Mini5Radio {
     await sleep(1000);                       // let the radio settle before re-handshaking
     this.log('Self-test 2/3: writing baseline back unchanged…');
     await this.upload(before, (p) => onProgress(0.45 + p * 0.45));
-    this.log('write done — radio reboots to commit; reconnecting…');
-    await sleep(3000);                        // radio reboots/drops BLE after a write
-    await this.reconnect();
-    await sleep(500);
-    this.log('Self-test 3/3: re-reading to compare…');
+    this.log('write done — radio reboots to commit; waiting for it to settle…');
+    await sleep(5000);                        // radio reboots/drops BLE after a write
+    this.log('Self-test 3/3: re-reading to compare…');   // download() self-heals the reconnect
     const after = await this.download((p) => onProgress(0.9 + p * 0.1));
     const diffs = [];
     for (let i = 0; i < before.length && diffs.length <= 256; i++) {
