@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Baofeng Mini 5 — Web Bluetooth POC</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 15px/1.5 system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; }
+  h1 { font-size: 1.3rem; }
+  button { font-size: 1rem; padding: .6rem 1.1rem; border-radius: 8px; border: 1px solid #888;
+           cursor: pointer; background: #2563eb; color: #fff; border-color: #2563eb; }
+  button:disabled { opacity: .5; cursor: default; }
+  #status { font-weight: 600; margin: 1rem 0; padding: .7rem 1rem; border-radius: 8px;
+            background: #8884; }
+  .ok  { background: #16a34a33 !important; }
+  .err { background: #dc262633 !important; }
+  #log { white-space: pre-wrap; font-family: ui-monospace, Menlo, monospace; font-size: 12.5px;
+         background: #8881; border-radius: 8px; padding: .8rem 1rem; min-height: 8rem;
+         overflow-x: auto; }
+  .tx { color: #2563eb; } .rx { color: #16a34a; } .info { opacity: .7; } .bad { color: #dc2626; }
+  small { opacity: .7; }
+</style>
+</head>
+<body>
+<h1>Baofeng Mini 5 — Web Bluetooth proof-of-concept</h1>
+<p>
+  Validates the full stack in your browser: <b>Web Bluetooth → GATT → program mode → identify → read memory</b>.
+  A successful block read proves both halves of cloning (download) work with no cable, ESP32, or CHIRP.
+</p>
+<ol>
+  <li>Use <b>Chrome or Edge</b> (Web Bluetooth — not Safari/Firefox).</li>
+  <li>Radio <b>on</b>, <b>Bluetooth enabled</b>, <b>not</b> connected to the phone app.</li>
+  <li>Click <b>Connect &amp; Read</b>, then pick the radio in the chooser.</li>
+</ol>
+
+<p>
+  <button id="go">Connect &amp; Read</button>
+  <button id="goName" title="Fallback: pick by any device (no service filter)">Connect (pick any)</button>
+</p>
+<div id="status">Idle.</div>
+<div id="log"></div>
+<p><small>Service <code>0xFFE0</code> / characteristic <code>0xFFE1</code> (HM-10 transparent serial). Write Without Response; ACK = <code>0x06</code>.</small></p>
+
+<script>
+const SERVICE = 0xffe0, CHAR = 0xffe1;
+const logEl = document.getElementById('log');
+const statusEl = document.getElementById('status');
+
+// SEND! init command (25 bytes) — required before reads/writes. From CHIRP _magics + captured BTSnoop.
+const SEND_INIT = hexToBytes('53454e4421050d010101041108050d0d01110f091209100400');
+
+const enc = new TextEncoder();
+const hex = (arr) => Array.from(arr, b => b.toString(16).padStart(2, '0')).join(' ');
+const ascii = (arr) => Array.from(arr, b => (b >= 32 && b < 127) ? String.fromCharCode(b) : '·').join('');
+function hexToBytes(s) { const o = []; for (let i = 0; i < s.length; i += 2) o.push(parseInt(s.substr(i, 2), 16)); return new Uint8Array(o); }
+
+function log(msg, cls = 'info') { logEl.innerHTML += `<span class="${cls}">${msg}</span>\n`; logEl.scrollTop = logEl.scrollHeight; }
+function setStatus(msg, cls = '') { statusEl.textContent = msg; statusEl.className = cls; }
+
+// ---- byte-stream collector over notifications -------------------------------
+let rxQueue = [];
+let waiter = null;
+
+function onNotify(e) {
+  const bytes = new Uint8Array(e.target.value.buffer);
+  log(`RX  ${hex(bytes)}   "${ascii(bytes)}"`, 'rx');
+  for (const b of bytes) rxQueue.push(b);
+  tryServeWaiter();
+}
+function tryServeWaiter() {
+  if (waiter && rxQueue.length >= waiter.want) {
+    const out = rxQueue.splice(0, waiter.want);
+    const w = waiter; waiter = null;
+    w.resolve(new Uint8Array(out));
+  }
+}
+function waitBytes(want, ms = 4000) {
+  return new Promise((resolve, reject) => {
+    waiter = { resolve, want };
+    tryServeWaiter();
+    setTimeout(() => {
+      if (waiter && waiter.resolve === resolve) {
+        waiter = null;
+        reject(new Error(`timeout: wanted ${want} byte(s), got ${rxQueue.length} (${hex(rxQueue)})`));
+      }
+    }, ms);
+  });
+}
+// Collect everything that arrives until quiet for `quietMs`, or `maxMs` elapses.
+function collect(maxMs = 2500, quietMs = 400) {
+  return new Promise((resolve) => {
+    const start = Date.now(); let lastLen = rxQueue.length, lastChange = Date.now();
+    const iv = setInterval(() => {
+      const now = Date.now();
+      if (rxQueue.length !== lastLen) { lastLen = rxQueue.length; lastChange = now; }
+      if ((rxQueue.length > 0 && now - lastChange >= quietMs) || now - start >= maxMs) {
+        clearInterval(iv);
+        resolve(new Uint8Array(rxQueue.splice(0, rxQueue.length)));
+      }
+    }, 50);
+  });
+}
+
+let characteristic = null;
+async function send(bytes, label) {
+  const arr = bytes instanceof Uint8Array ? bytes : enc.encode(bytes);
+  log(`TX  ${hex(arr)}${label ? '   ' + label : ''}`, 'tx');
+  try { await characteristic.writeValueWithoutResponse(arr); }
+  catch { await characteristic.writeValue(arr); }
+}
+
+// Build a read frame: 'R'(0x52) + addr(2 bytes BE) + length(1)  — matches CHIRP _make_read_frame
+function readFrame(addr, len) { return new Uint8Array([0x52, (addr >> 8) & 0xff, addr & 0xff, len & 0xff]); }
+
+async function run(pickAny) {
+  logEl.innerHTML = '';
+  setStatus('Requesting device…');
+  for (const b of document.querySelectorAll('button')) b.disabled = true;
+  try {
+    if (!navigator.bluetooth) throw new Error('navigator.bluetooth missing — use Chrome/Edge over https or localhost.');
+
+    const opts = pickAny
+      ? { acceptAllDevices: true, optionalServices: [SERVICE] }
+      : { filters: [{ services: [SERVICE] }], optionalServices: [SERVICE] };
+    const device = await navigator.bluetooth.requestDevice(opts);
+    log(`device: ${device.name || '(no name)'}`);
+    device.addEventListener('gattserverdisconnected', () => setStatus('Disconnected.', 'err'));
+
+    setStatus('Connecting GATT…');
+    const server = await device.gatt.connect();
+    const service = await server.getPrimaryService(SERVICE);
+    characteristic = await service.getCharacteristic(CHAR);
+    await characteristic.startNotifications();
+    characteristic.addEventListener('characteristicvaluechanged', onNotify);
+    log('connected; notifications started.\n');
+
+    // --- enter clone mode (magic → F → M → SEND!) ---
+    setStatus('Handshake: magic…');
+    rxQueue = [];
+    await send('PROGRAMCOLORPROU', '(magic)');
+    const ack1 = await waitBytes(1, 4000);
+    if (ack1[0] !== 0x06) throw new Error(`magic: expected 0x06, got 0x${ack1[0].toString(16)}`);
+    log('→ ACK 0x06', 'rx');
+
+    setStatus('Handshake: F…');
+    await send('F'); const conf = await collect(1500);
+    log(`→ config (${conf.length}B): ${hex(conf)}`, 'rx');
+
+    setStatus('Handshake: M (identify)…');
+    await send('M'); const id = await collect(1500);
+    const idStr = ascii(id).trim();
+    log(`→ RADIO ID: "${idStr}"`, 'rx');
+
+    setStatus('Handshake: SEND! init…');
+    await send(SEND_INIT, '(SEND! init)');
+    const ack2 = await waitBytes(1, 4000);
+    if (ack2[0] !== 0x06) throw new Error(`SEND!: expected 0x06, got 0x${ack2[0].toString(16)}`);
+    log('→ ACK 0x06  (clone mode ready)\n', 'rx');
+
+    // --- read first block (0x0000, 0x40 bytes). Response = 4-byte header + data. ---
+    setStatus('Reading block @0x0000…');
+    rxQueue = [];
+    await send(readFrame(0x0000, 0x40), '(R addr=0x0000 len=0x40)');
+    const resp = await waitBytes(0x40 + 4, 4000);   // header(4) + 64 data
+    const header = resp.slice(0, 4), payload = resp.slice(4);
+    log(`→ header: ${hex(header)}`, 'rx');
+    log(`→ DATA (${payload.length}B):\n${hex(payload)}\n"${ascii(payload)}"`, 'rx');
+
+    setStatus(`✅ FULL SUCCESS — "${idStr}" identified AND ${payload.length} bytes of memory read`, 'ok');
+  } catch (err) {
+    log(String(err.message || err), 'bad');
+    setStatus('❌ ' + (err.message || err), 'err');
+  } finally {
+    for (const b of document.querySelectorAll('button')) b.disabled = false;
+  }
+}
+
+document.getElementById('go').onclick = () => run(false);
+document.getElementById('goName').onclick = () => run(true);
+</script>
+</body>
+</html>

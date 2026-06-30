@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mini 5 Studio — Baofeng UV-5R Mini programmer</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">📻</span>
+    <div>
+      <h1>Mini 5 Studio</h1>
+      <p class="sub">Program your Baofeng UV-5R Mini from the browser — no cable, no CHIRP.</p>
+    </div>
+  </div>
+  <div class="status warn" id="status">Not connected</div>
+</header>
+
+<section class="toolbar">
+  <button id="btnConnect" class="primary">Connect radio</button>
+  <button id="btnPickAny" class="ghost" title="Pick any Bluetooth device (fallback)">Pick any…</button>
+  <span class="sep"></span>
+  <button id="btnDownload" disabled>⬇ Download from radio</button>
+  <button id="btnUpload" disabled title="Write the current image back to the radio">⬆ Write to radio</button>
+  <span class="sep"></span>
+  <button id="btnSave" disabled>💾 Save .img</button>
+  <label class="filebtn">📂 Load .img<input type="file" id="fileInput" accept=".img,.dat,application/octet-stream" hidden></label>
+  <span class="grow"></span>
+  <span class="count" id="count"></span>
+</section>
+
+<div class="progress"><div class="barfill" id="bar"></div></div>
+
+<main>
+  <div class="tablewrap">
+    <table class="channels">
+      <thead>
+        <tr>
+          <th>#</th><th>Name</th><th>RX (MHz)</th><th>Offset</th>
+          <th>RX tone</th><th>TX tone</th><th>Power</th><th>BW</th><th>Scan</th>
+        </tr>
+      </thead>
+      <tbody id="rows">
+        <tr><td colspan="9" class="dim" style="text-align:center;padding:2rem">
+          Connect and download, or load a saved <code>.img</code>.
+        </td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <aside class="logpane">
+    <h2>Activity</h2>
+    <div id="log" class="log"></div>
+    <p class="hint">Needs <b>Chrome</b> or <b>Edge</b> over <code>https</code>/<code>localhost</code>.
+       Web Bluetooth is not supported in Safari or Firefox.</p>
+  </aside>
+</main>
+
+<footer>
+  <span>Mini 5 Studio · GPLv3 · channel codec ported from
+    <a href="https://github.com/kk7ds/chirp" target="_blank" rel="noopener">CHIRP</a></span>
+</footer>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
