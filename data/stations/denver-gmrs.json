@@ -1,0 +1,14 @@
+{
+  "title": "Denver Metro GMRS",
+  "place": "Denver, CO",
+  "author": "example",
+  "description": "Example list — common GMRS repeaters around Denver. Verify access tones and that you are licensed before transmitting.",
+  "lat": 39.7392,
+  "lon": -104.9903,
+  "channels": [
+    { "name": "Lookout Mt", "rx": 462.6500, "tx": 467.6500, "tone": "141.3", "power": "High", "bw": "W" },
+    { "name": "Squaw Mtn", "rx": 462.5750, "tx": 467.5750, "tone": "100.0", "power": "High", "bw": "W" },
+    { "name": "GMRS 15", "rx": 462.5500, "power": "High", "bw": "W" },
+    { "name": "GMRS 19", "rx": 462.6500, "power": "High", "bw": "W" }
+  ]
+}

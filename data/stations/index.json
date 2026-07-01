@@ -1,0 +1,22 @@
+{
+  "lists": [
+    {
+      "id": "denver-gmrs",
+      "title": "Denver Metro GMRS",
+      "place": "Denver, CO",
+      "author": "example",
+      "lat": 39.7392,
+      "lon": -104.9903,
+      "count": 4
+    },
+    {
+      "id": "seattle-ham",
+      "title": "Seattle 2 m / 70 cm",
+      "place": "Seattle, WA",
+      "author": "example",
+      "lat": 47.6062,
+      "lon": -122.3321,
+      "count": 3
+    }
+  ]
+}

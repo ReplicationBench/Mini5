@@ -6,7 +6,7 @@ import { MHz } from './codec.js';
 const esc = (s) => String(s || '').replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
 
 export function createRepeaterMap({ mapEl, onAdd, onStatus }) {
-  let map, layer, current = [];
+  let map, layer, stationLayer, current = [];
 
   function ensure() {
     if (map) { map.invalidateSize(); return; }
@@ -15,6 +15,29 @@ export function createRepeaterMap({ mapEl, onAdd, onStatus }) {
       maxZoom: 18, attribution: '© OpenStreetMap contributors',
     }).addTo(map);
     layer = L.layerGroup().addTo(map);
+    stationLayer = L.layerGroup().addTo(map);
+  }
+
+  function center() { return map ? map.getCenter() : null; }
+
+  // Plot community station lists (green) from the lightweight index. onAddList(list) fires
+  // when the popup's Add button is clicked.
+  function plotStations(lists, onAddList) {
+    ensure();
+    stationLayer.clearLayers();
+    const pts = [];
+    for (const l of lists) {
+      if (l.lat == null || l.lon == null) continue;
+      const m = L.circleMarker([l.lat, l.lon], { radius: 9, weight: 2, color: '#15803d', fillColor: '#22c55e', fillOpacity: 0.85 });
+      m.bindPopup(
+        `<b>${esc(l.title)}</b>${l.place ? '<br>' + esc(l.place) : ''}${l.author ? ' · ' + esc(l.author) : ''}`
+        + `<br>${l.count || 0} channels`
+        + `<br><button class="popadd" type="button">➕ Add ${l.count || 0} channels</button>`);
+      m.on('popupopen', (e) => { const b = e.popup.getElement().querySelector('.popadd'); if (b) b.onclick = () => onAddList(l); });
+      m.addTo(stationLayer); pts.push([l.lat, l.lon]);
+    }
+    if (pts.length) map.fitBounds(pts, { padding: [40, 40], maxZoom: 9 });
+    return lists.length;
   }
 
   function importCsv(text) {
@@ -45,5 +68,5 @@ export function createRepeaterMap({ mapEl, onAdd, onStatus }) {
     return repeaters.length;
   }
 
-  return { show: ensure, importCsv };
+  return { show: ensure, importCsv, plotStations, center };
 }

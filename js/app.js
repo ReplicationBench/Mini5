@@ -6,6 +6,7 @@ import {
 } from './codec.js';
 import { PRESETS, presetToChannels } from './presets.js';
 import { createRepeaterMap } from './map.js';
+import { loadIndex, loadList, stationToChannels, buildListJson, slugify } from './stations.js';
 
 const $ = (id) => document.getElementById(id);
 const radio = new Mini5Radio();
@@ -275,6 +276,53 @@ $('repInput').onchange = async (e) => {
   if (n) { $('repCount').textContent = `${n} repeaters`; setStatus(`Loaded ${n} repeaters from ${f.name}. Click a marker → Add as channel.`, 'ok'); }
   e.target.value = '';
 };
+
+// ---- shared station lists (community) ---------------------------------------
+async function showStations() {
+  switchView('map');
+  setStatus('Loading shared lists…');
+  try {
+    const lists = await loadIndex();
+    const n = repMap.plotStations(lists, addStationList);
+    setStatus(`Loaded ${n} shared list(s) — click a green marker → Add.`, 'ok');
+  } catch (e) { setStatus(e.message, 'err'); log(e.message, 'err'); }
+}
+async function addStationList(l) {
+  try {
+    const full = await loadList(l.id);
+    const r = addChannels(stationToChannels(full));
+    setStatus(`Added ${r.added} channel(s) from "${full.title}"${r.full ? ' — radio full' : ''}.`, r.full ? 'warn' : 'ok');
+  } catch (e) { setStatus(e.message, 'err'); log(e.message, 'err'); }
+}
+
+function shareChannels() {
+  const chans = image ? decodeChannels(image) : [];
+  if (!chans.length) { setStatus('No channels to share — add or download some first.', 'warn'); return; }
+  const title = prompt('List title (e.g. "Denver Metro GMRS"):'); if (!title) return;
+  const place = prompt('Place / region (e.g. "Denver, CO"):', '') || '';
+  const author = prompt('Your name / callsign (optional):', '') || '';
+  const c = repMap.center();
+  const coord = prompt('Location as "lat, lon" (defaults to the current map center):',
+    c ? `${c.lat.toFixed(4)}, ${c.lng.toFixed(4)}` : '');
+  let lat = c ? c.lat : NaN, lon = c ? c.lng : NaN;
+  if (coord) { const m = coord.split(','); lat = parseFloat(m[0]); lon = parseFloat(m[1]); }
+  if (!isFinite(lat) || !isFinite(lon)) { setStatus('Need a valid "lat, lon" — open the Map, center it, or type coordinates.', 'err'); return; }
+
+  const json = JSON.stringify(buildListJson({ title, place, author, lat, lon }, chans), null, 2) + '\n';
+  const slug = slugify(title);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+  a.download = `${slug}.json`; a.click(); URL.revokeObjectURL(a.href);
+
+  const url = `https://github.com/ReplicationBench/Mini5/new/main?filename=${encodeURIComponent('data/stations/' + slug + '.json')}&value=${encodeURIComponent(json)}`;
+  log(`Saved ${slug}.json — open a PR adding it under data/stations/ (the map index rebuilds automatically).`, 'ok');
+  if (url.length < 7000) window.open(url, '_blank', 'noopener');
+  else log('List too big to prefill a PR link; add the downloaded file to data/stations/ in a PR.', 'warn');
+  setStatus(`Built "${title}" (${chans.length} channels) — file downloaded${url.length < 7000 ? ', opening a PR draft' : ''}.`, 'ok');
+}
+
+$('btnStations').onclick = showStations;
+$('btnShare').onclick = shareChannels;
 $('fileInput').onchange = (e) => { if (e.target.files[0]) loadImg(e.target.files[0]); };
 
 $('prSaveGroup').onclick = saveGroup;

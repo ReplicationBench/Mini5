@@ -1,0 +1,13 @@
+{
+  "title": "Seattle 2 m / 70 cm",
+  "place": "Seattle, WA",
+  "author": "example",
+  "description": "Example list — a few popular Seattle-area ham repeaters plus the 2 m simplex calling channel. Amateur license required.",
+  "lat": 47.6062,
+  "lon": -122.3321,
+  "channels": [
+    { "name": "Cougar Mt", "rx": 146.8200, "tx": 146.2200, "tone": "103.5", "power": "High", "bw": "W" },
+    { "name": "Capitol Pk", "rx": 444.5500, "tx": 449.5500, "tone": "103.5", "power": "High", "bw": "W" },
+    { "name": "2m CALL", "rx": 146.5200, "power": "High", "bw": "W" }
+  ]
+}
