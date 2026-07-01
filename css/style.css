@@ -72,6 +72,13 @@ main { display: flex; gap: 0; flex: 1; min-height: 0; }
 .tablewrap { overflow: auto; }
 #view-map { display: flex; flex-direction: column; }
 #view-map[hidden] { display: none; }
+#view-settings { overflow: auto; }
+.settingsbody { padding: 1rem 1.2rem; }
+.settingsbody h3 { font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--dim); margin: 1.2rem 0 .5rem; }
+.settingsbody h3:first-child { margin-top: 0; }
+.setgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: .7rem 1rem; }
+.setgrid label { display: flex; flex-direction: column; gap: .25rem; font-size: .82rem; color: var(--dim); }
+.setgrid select { font: inherit; padding: .4rem .5rem; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--txt); }
 .maptools { display: flex; align-items: center; gap: .6rem; padding: .5rem .8rem; border-bottom: 1px solid var(--line); }
 #map { flex: 1; min-height: 320px; background: var(--panel2); }
 .leaflet-popup-content { font: inherit; }

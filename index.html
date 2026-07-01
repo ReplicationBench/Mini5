@@ -48,6 +48,7 @@
   <nav class="tabs">
     <button class="tab active" data-view="channels">📋 Channels</button>
     <button class="tab" data-view="map">🗺️ Map (repeaters)</button>
+    <button class="tab" data-view="settings">⚙️ Settings</button>
   </nav>
   <div id="view-channels" class="view tablewrap">
     <table class="channels">
@@ -75,6 +76,11 @@
       <a href="https://www.repeaterbook.com" target="_blank" rel="noopener" class="dim">get a CSV export →</a>
     </div>
     <div id="map"></div>
+  </div>
+  <div id="view-settings" class="view" hidden>
+    <div class="settingsbody" id="settingsBody">
+      <p class="dim">Download from the radio or load an <code>.img</code> to view and edit settings.</p>
+    </div>
   </div>
   </div>
 

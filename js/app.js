@@ -7,6 +7,7 @@ import {
 import { PRESETS, presetToChannels } from './presets.js';
 import { createRepeaterMap } from './map.js';
 import { loadIndex, loadList, stationToChannels, buildListJson, slugify } from './stations.js';
+import { decodeSettings, applySetting, SETTING_GROUPS } from './settings.js';
 
 const $ = (id) => document.getElementById(id);
 const radio = new Mini5Radio();
@@ -267,8 +268,30 @@ function switchView(view) {
   document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.view === view));
   $('view-channels').hidden = view !== 'channels';
   $('view-map').hidden = view !== 'map';
+  $('view-settings').hidden = view !== 'settings';
   if (view === 'map') repMap.show();
+  if (view === 'settings') renderSettings();
 }
+
+function renderSettings() {
+  const body = $('settingsBody');
+  if (!image) { body.innerHTML = '<p class="dim">Download from the radio or load an <code>.img</code> to view and edit settings.</p>'; return; }
+  const decoded = decodeSettings(image);
+  body.innerHTML = SETTING_GROUPS.map((g) => {
+    const rows = decoded.filter((s) => s.group === g).map((s) => {
+      const known = s.options.some((o) => o[0] === s.value);
+      const opts = (known ? '' : `<option value="${s.value}" selected>raw ${s.value}</option>`)
+        + s.options.map((o) => `<option value="${o[0]}"${o[0] === s.value ? ' selected' : ''}>${esc(o[1])}</option>`).join('');
+      return `<label>${esc(s.label)}<select data-setting="${s.key}">${opts}</select></label>`;
+    }).join('');
+    return `<h3>${esc(g)}</h3><div class="setgrid">${rows}</div>`;
+  }).join('');
+}
+$('settingsBody').addEventListener('change', (e) => {
+  const key = e.target.dataset.setting; if (!key || !image) return;
+  applySetting(image, key, e.target.value);
+  setStatus(`Setting "${key}" changed — Write to radio to apply.`, 'ok');
+});
 document.querySelectorAll('.tab').forEach((t) => { t.onclick = () => switchView(t.dataset.view); });
 $('repInput').onchange = async (e) => {
   const f = e.target.files[0]; if (!f) return;

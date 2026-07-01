@@ -65,7 +65,7 @@ The channel codec is ported from CHIRP's `baofeng_uv17Pro.py`.
 - [x] **Band presets** (GMRS w/ repeaters, FRS, MURS, PMR446, NOAA, 2m/70cm) and **custom groups**
 - [x] **Repeater map** — Leaflet + RepeaterBook CSV import, click a marker to add as a channel
 - [x] **Shared station lists by location** — community lists on the map (GitHub-hosted `data/stations/`, single-file PRs, auto-indexed); "Share my channels" builds a PR
-- [ ] Settings decode (squelch, VOX, timeout, …) from the known `0x9000` map
+- [x] **Settings** decode + edit (squelch, VOX, timeout, backlight, keys, …) in the `0x9000` block
 - [ ] Boot-logo designer + upload (A5 over BLE — needs on-device verification)
 - [ ] Boot-logo designer + upload — A5 protocol. **Note:** no public tool has yet
       confirmed boot-logo flashing *over BLE* for this radio (existing implementations

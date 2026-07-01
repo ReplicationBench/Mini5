@@ -166,3 +166,16 @@ export function firstEmptySlot(image) {
 }
 
 export const MHz = (hz) => (hz / 1e6).toFixed(5);
+
+// Map a radio address to its offset in the assembled image (read regions are concatenated:
+// 0x0000, then radio 0x9000 at image 0x8040, then radio 0xA000 at image 0x8080).
+export function radioOffset(addr) {
+  if (addr >= 0x0000 && addr < 0x8040) return addr;
+  if (addr >= 0x9000 && addr < 0x9040) return 0x8040 + (addr - 0x9000);
+  if (addr >= 0xA000 && addr < 0xA1C0) return 0x8080 + (addr - 0xA000);
+  return -1;
+}
+// De-obfuscated read/write of a single byte by radio address (region bases are block-aligned,
+// so the image-offset XOR key matches the radio's).
+export function getByte(image, addr) { const o = radioOffset(addr); return o < 0 ? 0xff : cryptByte(image[o], o); }
+export function setByte(image, addr, v) { const o = radioOffset(addr); if (o >= 0) image[o] = cryptByte(v & 0xff, o); }
