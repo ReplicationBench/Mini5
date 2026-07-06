@@ -6,6 +6,7 @@ import {
 } from './codec.js';
 import { PRESETS, presetToChannels } from './presets.js';
 import { createRepeaterMap } from './map.js';
+import { parseChirpCsv, csvHasCoords } from './repeaters.js';
 import { loadIndex, loadList, stationToChannels, buildListJson, slugify } from './stations.js';
 import { decodeSettings, applySetting, SETTING_GROUPS } from './settings.js';
 
@@ -134,7 +135,7 @@ function renderChannels() {
       <td class="num">${c.number}</td>
       <td class="name">${esc(c.name) || '<span class="dim">—</span>'}</td>
       <td class="freq">${MHz(c.rxFreq)}</td>
-      <td class="freq dim">${off}</td>
+      <td class="freq dim">${c.rxOnly ? '<span class="rxonly">RX only</span>' : off}</td>
       <td>${toneLabel(c.rxTone) || '<span class="dim">—</span>'}</td>
       <td>${toneLabel(c.txTone) || '<span class="dim">—</span>'}</td>
       <td>${c.power}</td>
@@ -152,12 +153,14 @@ function openEditor(slot, fresh) {
   $('edTitle').textContent = `${fresh ? 'New' : 'Edit'} channel ${slot + 1}`;
   $('edName').value = c?.name ?? '';
   $('edRx').value = c ? MHz(c.rxFreq) : '';
-  $('edTx').value = c && c.txFreq !== c.rxFreq ? MHz(c.txFreq) : '';
+  $('edTx').value = (c && !c.rxOnly && c.txFreq && c.txFreq !== c.rxFreq) ? MHz(c.txFreq) : '';
   $('edRxTone').value = c ? toneLabel(c.rxTone) : '';
   $('edTxTone').value = c ? toneLabel(c.txTone) : '';
   $('edPower').value = c?.power ?? 'High';
   $('edWide').value = (c ? c.wide : true) ? '1' : '0';
   $('edScan').checked = c?.scan ?? false;
+  $('edRxOnly').checked = c?.rxOnly ?? false;
+  reflectRxOnly();
   $('edDelete').style.visibility = fresh ? 'hidden' : 'visible';
   $('edErr').textContent = '';
   $('editor').hidden = false;
@@ -165,13 +168,21 @@ function openEditor(slot, fresh) {
 }
 function closeEditor() { $('editor').hidden = true; }
 
+function reflectRxOnly() {
+  const on = $('edRxOnly').checked;
+  $('edTx').disabled = on;
+  $('edForm').querySelectorAll('.offsets button').forEach((b) => { b.disabled = on; });
+  if (on) $('edTx').value = '';
+}
+
 function saveEditor(e) {
   e.preventDefault();
+  const rxOnly = $('edRxOnly').checked;
   const rx = parseFloat($('edRx').value);
   if (isNaN(rx)) return fail('Enter a valid RX frequency in MHz.');
   const txStr = $('edTx').value.trim();
-  const tx = txStr === '' ? rx : parseFloat(txStr);
-  if (isNaN(tx)) return fail('TX frequency is not a valid number.');
+  const tx = (rxOnly || txStr === '') ? rx : parseFloat(txStr);
+  if (!rxOnly && isNaN(tx)) return fail('TX frequency is not a valid number.');
   const rxTone = parseTone($('edRxTone').value);
   const txTone = parseTone($('edTxTone').value);
   if (rxTone === null) return fail('RX tone must be blank, a CTCSS freq (100.0), or DCS (D023).');
@@ -180,6 +191,7 @@ function saveEditor(e) {
   encodeChannel(image, edit.slot, {
     rxFreq: Math.round(rx * 1e6),
     txFreq: Math.round(tx * 1e6),
+    rxOnly,
     name: $('edName').value,
     power: $('edPower').value,
     wide: $('edWide').value === '1',
@@ -347,6 +359,20 @@ function shareChannels() {
 $('btnStations').onclick = showStations;
 $('btnShare').onclick = shareChannels;
 $('fileInput').onchange = (e) => { if (e.target.files[0]) loadImg(e.target.files[0]); };
+$('csvInput').onchange = async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  const text = await f.text();
+  if (csvHasCoords(text)) {                       // RepeaterBook "Plus" CSV with lat/long → map
+    switchView('map');
+    const n = repMap.importCsv(text);
+    if (n) { $('repCount').textContent = `${n} repeaters`; setStatus(`Loaded ${n} repeaters onto the map — click a marker to add.`, 'ok'); }
+  } else {                                          // CHIRP-format CSV (RepeaterBook free export) → channels
+    const { channels, error } = parseChirpCsv(text);
+    if (error) setStatus(error, 'err');
+    else { const r = addChannels(channels); setStatus(`Imported ${r.added} channel(s) from ${f.name}${r.full ? ' — radio full' : ''}.`, r.full ? 'warn' : 'ok'); }
+  }
+  e.target.value = '';
+};
 
 $('prSaveGroup').onclick = saveGroup;
 $('presets').addEventListener('click', (e) => {
@@ -369,6 +395,7 @@ $('rows').addEventListener('click', (e) => {
   if (tr) openEditor(Number(tr.dataset.slot), false);
 });
 $('edForm').addEventListener('submit', saveEditor);
+$('edRxOnly').addEventListener('change', reflectRxOnly);
 $('edClose').onclick = closeEditor;
 $('edCancel').onclick = closeEditor;
 $('edDelete').onclick = deleteChannel;

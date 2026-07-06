@@ -28,6 +28,7 @@ export function stationToChannels(list) {
       power: c.power === 'Low' ? 'Low' : 'High',
       wide: c.bw !== 'N',
       scan: !!c.scan,
+      rxOnly: !!c.rxonly,
       rxTone: parseTone(c.rxtone || '') || { mode: '', value: 0 },
       txTone: parseTone(c.tone || c.txtone || '') || { mode: '', value: 0 },
     };
@@ -48,7 +49,8 @@ export function buildListJson(meta, channels) {
     lon: Number(meta.lon),
     channels: channels.map((c) => {
       const o = { name: c.name, rx: +(c.rxFreq / 1e6).toFixed(5) };
-      if (c.txFreq && c.txFreq !== c.rxFreq) o.tx = +(c.txFreq / 1e6).toFixed(5);
+      if (c.rxOnly) o.rxonly = true;
+      else if (c.txFreq && c.txFreq !== c.rxFreq) o.tx = +(c.txFreq / 1e6).toFixed(5);
       const tt = toneStr(c.txTone); if (tt) o.tone = tt;
       const rt = toneStr(c.rxTone); if (rt) o.rxtone = rt;
       o.power = c.power; o.bw = c.wide ? 'W' : 'N';

@@ -34,6 +34,7 @@
   <span class="sep"></span>
   <button id="btnSave" disabled>💾 Save .img</button>
   <label class="filebtn">📂 Load .img<input type="file" id="fileInput" accept=".img,.dat,application/octet-stream" hidden></label>
+  <label class="filebtn">📄 Import CSV<input type="file" id="csvInput" accept=".csv,text/csv" hidden></label>
   <span class="sep"></span>
   <button id="btnAdd" disabled>➕ Add channel</button>
   <button id="btnPresets">📚 Presets &amp; groups</button>
@@ -124,6 +125,7 @@
         <select id="edWide"><option value="1">Wide (25k)</option><option value="0">Narrow (12.5k)</option></select>
       </label>
       <label class="check"><input type="checkbox" id="edScan"> Include in scan</label>
+      <label class="check"><input type="checkbox" id="edRxOnly"> RX only (block transmit)</label>
       <p class="ederr" id="edErr"></p>
       <footer class="modal-foot">
         <button type="button" class="danger" id="edDelete">Delete</button>

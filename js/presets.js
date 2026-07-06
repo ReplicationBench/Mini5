@@ -16,8 +16,8 @@ const MURS = [151.820, 151.880, 151.940, 154.570, 154.600];
 const PMR  = seq(446.00625, 0.0125, 16);
 
 export const PRESETS = [
-  { key: 'wx', label: 'NOAA Weather', note: 'Receive-only weather channels (RX).',
-    channels: WX.map((f, i) => ({ name: `WX${i + 1}`, rx: f, pw: 'H', bw: 'W' })) },
+  { key: 'wx', label: 'NOAA Weather', note: 'Receive-only weather channels (TX blocked).',
+    channels: WX.map((f, i) => ({ name: `WX${i + 1}`, rx: f, pw: 'H', bw: 'W', rxonly: true })) },
 
   { key: 'frs', label: 'FRS (22)', note: 'License-free FRS. Narrow FM, low power.',
     channels: [...FRS_MAIN, ...FRS_INT, ...FRS_HIGH].map((f, i) => ({ name: `FRS ${i + 1}`, rx: f, pw: 'L', bw: 'N' })) },
@@ -53,6 +53,7 @@ export function presetToChannels(preset) {
     power: c.pw === 'L' ? 'Low' : 'High',
     wide: c.bw !== 'N',
     scan: false,
+    rxOnly: !!c.rxonly,
     rxTone: { mode: '', value: 0 },
     txTone: { mode: '', value: 0 },
   }));

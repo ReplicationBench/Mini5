@@ -101,6 +101,7 @@ table.channels { width: 100%; border-collapse: collapse; font-variant-numeric: t
 .channels .name { font-weight: 600; }
 .channels .freq { font-family: ui-monospace, Menlo, monospace; }
 .dim { color: var(--dim); }
+.rxonly { color: var(--warn); font-weight: 600; }
 
 .log { flex: 1; overflow: auto; font-family: ui-monospace, Menlo, monospace; font-size: 12px;
        background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); padding: .6rem; }

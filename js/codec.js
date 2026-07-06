@@ -97,10 +97,13 @@ function readChannel(img, idx) {
   let name = '';
   for (let i = 0; i < 12; i++) { const c = p[20 + i]; if (c === 0x00 || c === 0xff) break; name += String.fromCharCode(c); }
 
+  const rxFreq = decodeFreq(p.subarray(0, 4));
+  const txFreq = decodeFreq(p.subarray(4, 8));
   return {
     number: idx + 1,
-    rxFreq: decodeFreq(p.subarray(0, 4)),
-    txFreq: decodeFreq(p.subarray(4, 8)),
+    rxFreq,
+    txFreq,
+    rxOnly: txFreq === 0,          // TX all 0xFF/0x00 → radio blocks transmit (e.g. WX channels)
     rxTone: decodeTone(p[8] | (p[9] << 8)),
     txTone: decodeTone(p[10] | (p[11] << 8)),
     power: POWER_LEVELS[p[14] & 0x01] ?? 'High',
@@ -124,7 +127,9 @@ export function encodeChannel(image, idx, ch, { fresh = false } = {}) {
   const base = MINI5.CHAN_BASE + idx * MINI5.CHAN_SIZE;
 
   const rxB = encodeFreq(ch.rxFreq);
-  const txB = encodeFreq(ch.txFreq && ch.txFreq > 0 ? ch.txFreq : ch.rxFreq);
+  const txB = ch.rxOnly
+    ? Uint8Array.of(0xff, 0xff, 0xff, 0xff)                     // RX-only: no TX -> radio blocks transmit
+    : encodeFreq(ch.txFreq && ch.txFreq > 0 ? ch.txFreq : ch.rxFreq);
   for (let i = 0; i < 4; i++) setPlain(view, base + i, rxB[i]);
   for (let i = 0; i < 4; i++) setPlain(view, base + 4 + i, txB[i]);
 
